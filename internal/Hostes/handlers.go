@@ -90,3 +90,17 @@ func (h *Handler) HotelGetAll(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, htels)
 }
+
+func (h *Handler) HotelDelete(c *gin.Context) {
+	ctx := c.Request.Context()
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, err.Error())
+		return
+	}
+	if err := h.service.HotelDelete(ctx, uint(id)); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"massage": "Hotel delite"})
+}

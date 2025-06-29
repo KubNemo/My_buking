@@ -1,6 +1,7 @@
 package main
 
 import (
+	hostes "duking/internal/Hostes"
 	"duking/internal/config"
 	"duking/internal/logger"
 	"duking/pkg/db"
@@ -21,10 +22,17 @@ func main() {
 	if err != nil {
 		// TODO ...
 	}
-	_ = pool
+	repo := hostes.NewRepository(pool)
+	svc := hostes.NewService(repo)
+	h := hostes.Newhandler(svc)
 
 	r := gin.New()
 	r.Use(gin.Recovery())
+	r.POST("/create", h.HotelCreate)
+	r.GET("/oneHotel", h.HotelGetOne)
+	r.GET("/allHotel", h.HotelGetAll)
+	r.PATCH("updateHotel", h.UpdateHotel)
+	r.DELETE("DeleteHotel", h.HotelDelete)
 	if err := r.Run(":" + cfg.Port); err != nil {
 		return // TODO
 	}
