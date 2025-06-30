@@ -5,7 +5,7 @@ import (
 	"duking/internal/models"
 	"fmt"
 
-	"github.com/jackc/pgx"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -13,7 +13,7 @@ type Repository interface {
 	Create(ctx context.Context, hotel *models.Hotel) error
 	GetOne(ctx context.Context, id uint) (*models.Hotel, error)
 	GetAll(ctx context.Context) ([]models.Hotel, error)
-	Update(ctx context.Context, id uint, hotel *models.Hotel) (*models.Hotel, error)
+	Update(ctx context.Context, id uint, hotel models.Hotel) (*models.Hotel, error)
 	Delete(ctx context.Context, id uint) error
 }
 
@@ -27,15 +27,14 @@ func NewRepository(db *pgxpool.Pool) Repository {
 
 func (r *repository) Create(ctx context.Context, hotel *models.Hotel) error {
 	query := `
-	INSERT INTO hotels(name,description,location, image_url) 
-	VALUES($1,$2,$3,$4)
-	RETURNING hotel_id,created_at,updated_at
+	INSERT INTO hotels(name, description, location, image_url) 
+	VALUES($1, $2, $3, $4)
+	RETURNING hotel_id, created_at, updated_at
 	`
-	err := r.db.QueryRow(
-		ctx, query, &hotel.Name, &hotel.Description, &hotel.Location, &hotel.ImageURL).
+	err := r.db.QueryRow(ctx, query, hotel.Name, hotel.Description, hotel.Location, hotel.ImageURL).
 		Scan(&hotel.HotelID, &hotel.CreatedAt, &hotel.UpdatedAt)
 	if err != nil {
-		return fmt.Errorf("failed to execute SQL request create_Hotel")
+		return fmt.Errorf("failed to execute SQL request create_Hotel: %w", err)
 	}
 	return nil
 }
@@ -54,6 +53,7 @@ func (r *repository) GetOne(ctx context.Context, id uint) (*models.Hotel, error)
 	}
 	return &h, nil
 }
+
 func (r *repository) GetAll(ctx context.Context) ([]models.Hotel, error) {
 	query := `SELECT hotel_id, name, description, location, image_url, created_at, updated_at FROM hotels`
 	rows, err := r.db.Query(ctx, query)
@@ -74,7 +74,7 @@ func (r *repository) GetAll(ctx context.Context) ([]models.Hotel, error) {
 	return hotels, nil
 }
 
-func (r *repository) Update(ctx context.Context, id uint, hotel models.Hotel) error {
+func (r *repository) Update(ctx context.Context, id uint, hotel models.Hotel) (*models.Hotel, error) {
 	query := `
 		UPDATE hotels
 		SET name = $1, description = $2, location = $3, image_url = $4, updated_at = NOW()
@@ -85,10 +85,11 @@ func (r *repository) Update(ctx context.Context, id uint, hotel models.Hotel) er
 		hotel.Description,
 		hotel.Location,
 		hotel.ImageURL,
-		hotel.HotelID,
+		id,
 	)
-	return err
+	return nil, err
 }
+
 func (r *repository) Delete(ctx context.Context, id uint) error {
 	query := `DELETE FROM hotels WHERE hotel_id = $1`
 	_, err := r.db.Exec(ctx, query, id)

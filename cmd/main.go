@@ -8,10 +8,16 @@ import (
 	"log"
 
 	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
+	"go.uber.org/zap"
 )
 
 func main() {
 	cfg := config.LoadConfig()
+	err := godotenv.Load(".env") // или "./internal/config/.env" — смотри по расположению
+	if err != nil {
+		log.Println("⚠️  .env файл не найден, загружаю переменные из окружения")
+	}
 	lg, err := logger.Init(false)
 	if err != nil {
 		log.Fatalf("failed to init logger: %v", err)
@@ -20,8 +26,9 @@ func main() {
 
 	pool, err := db.InitDB(cfg)
 	if err != nil {
-		// TODO ...
+		lg.Error("failed to initialize DB", zap.Error(err))
 	}
+	defer pool.Close()
 	repo := hostes.NewRepository(pool)
 	svc := hostes.NewService(repo)
 	h := hostes.Newhandler(svc)
@@ -29,11 +36,17 @@ func main() {
 	r := gin.New()
 	r.Use(gin.Recovery())
 	r.POST("/create", h.HotelCreate)
-	r.GET("/oneHotel", h.HotelGetOne)
+	r.GET("/oneHotel/:id", h.HotelGetOne)
 	r.GET("/allHotel", h.HotelGetAll)
-	r.PATCH("updateHotel", h.UpdateHotel)
-	r.DELETE("DeleteHotel", h.HotelDelete)
-	if err := r.Run(":" + cfg.Port); err != nil {
-		return // TODO
+	r.PATCH("updateHotel/:id", h.UpdateHotel)
+	r.DELETE("DeleteHotel/:id", h.HotelDelete)
+	lg.Info("Server starting")
+	port := cfg.Port
+	// if port == "" {
+	// 	port = "8080"
+	// }
+	if err := r.Run(":" + port); err != nil {
+		lg.Fatal("", zap.Error(err))
+		return
 	}
 }

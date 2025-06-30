@@ -3,13 +3,15 @@ package db
 import (
 	"context"
 	"duking/internal/config"
+	"fmt"
+	"log"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 func InitDB(cfg *config.Config) (*pgxpool.Pool, error) {
 	dsn := fmt.Sprintf(
-		"user=%s password=%s host=%s port=%s dbname=%s sslmode=%s pool_max_conns=10",
+		"postgres://%s:%s@%s:%s/%s?sslmode=%s",
 		cfg.DB.User,
 		cfg.DB.Password,
 		cfg.DB.Host,
@@ -19,7 +21,8 @@ func InitDB(cfg *config.Config) (*pgxpool.Pool, error) {
 	)
 	pool, err := pgxpool.New(context.Background(), dsn)
 	if err != nil {
-		return nil, fmt.ErrorF("ошибка создания пула: %w", err)
+		return nil, fmt.Errorf("ошибка создания пула: %w", err)
 	}
+	log.Println("successful database startup")
 	return pool, nil
 }

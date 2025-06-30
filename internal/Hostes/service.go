@@ -57,7 +57,7 @@ func (s *service) HotelGetOne(ctx context.Context, id uint) (*models.Hotel, erro
 
 // HotelUpdate implements Service.
 func (s *service) HotelUpdate(ctx context.Context, id uint, hotel *models.Hotel) (*models.Hotel, error) {
-	hotel, err := s.repo.Update(ctx, id, hotel)
+	hotel, err := s.repo.Update(ctx, id, *hotel)
 	if err != nil {
 		return nil, err
 	}
