@@ -1,8 +1,9 @@
-package hostes
+package usecase
 
 import (
 	"context"
 	"duking/internal/models"
+	"duking/internal/repository"
 )
 
 type Service interface {
@@ -14,10 +15,10 @@ type Service interface {
 }
 
 type service struct {
-	repo Repository
+	repo repository.Repository
 }
 
-func NewService(repo Repository) Service {
+func NewService(repo repository.Repository) Service {
 	return &service{repo: repo}
 }
 

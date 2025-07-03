@@ -1,23 +1,20 @@
 package main
 
 import (
-	hostes "duking/internal/Hostes"
 	"duking/internal/config"
+	"duking/internal/delivery/http"
 	"duking/internal/logger"
+	"duking/internal/repository"
+	"duking/internal/usecase"
 	"duking/pkg/db"
 	"log"
 
 	"github.com/gin-gonic/gin"
-	"github.com/joho/godotenv"
 	"go.uber.org/zap"
 )
 
 func main() {
 	cfg := config.LoadConfig()
-	err := godotenv.Load(".env") // или "./internal/config/.env" — смотри по расположению
-	if err != nil {
-		log.Println("⚠️  .env файл не найден, загружаю переменные из окружения")
-	}
 	lg, err := logger.Init(false)
 	if err != nil {
 		log.Fatalf("failed to init logger: %v", err)
@@ -29,9 +26,9 @@ func main() {
 		lg.Error("failed to initialize DB", zap.Error(err))
 	}
 	defer pool.Close()
-	repo := hostes.NewRepository(pool)
-	svc := hostes.NewService(repo)
-	h := hostes.Newhandler(svc)
+	repo := repository.NewRepository(pool)
+	svc := usecase.NewService(repo)
+	h := http.Newhandler(svc)
 
 	r := gin.New()
 	r.Use(gin.Recovery())
@@ -42,9 +39,9 @@ func main() {
 	r.DELETE("DeleteHotel/:id", h.HotelDelete)
 	lg.Info("Server starting")
 	port := cfg.Port
-	// if port == "" {
-	// 	port = "8080"
-	// }
+	if port == "" {
+		port = "8080"
+	}
 	if err := r.Run(":" + port); err != nil {
 		lg.Fatal("", zap.Error(err))
 		return
