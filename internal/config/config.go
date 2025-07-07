@@ -22,12 +22,12 @@ type Config struct {
 }
 
 func LoadConfig() *Config {
-	err := godotenv.Load(".env")
+	err := godotenv.Load()
 	if err != nil {
 		log.Println("⚠️  .env файл не найден, загружаю переменные из окружения")
 	}
 
-	cfg := &Config{
+	return &Config{
 		Port: os.Getenv("PORT"),
 		DB: DBConfig{
 			Name:     os.Getenv("DB_NAME"),
@@ -38,8 +38,4 @@ func LoadConfig() *Config {
 			SSLMode:  os.Getenv("DB_SSLMODE"),
 		},
 	}
-
-	log.Printf("Загруженные переменные: %+v\n", cfg.DB)
-
-	return cfg
 }

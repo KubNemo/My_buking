@@ -37,6 +37,7 @@ func main() {
 	r.GET("/allHotel", h.HotelGetAll)
 	r.PATCH("updateHotel/:id", h.UpdateHotel)
 	r.DELETE("DeleteHotel/:id", h.HotelDelete)
+
 	lg.Info("Server starting")
 	port := cfg.Port
 	if port == "" {
