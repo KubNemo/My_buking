@@ -1,0 +1,197 @@
+syntax = "proto3";
+
+package hotel_booking;
+
+// ВАЖНО: Замените "duking" на имя вашего Go-модуля из go.mod
+option go_package = "duking/api/proto";
+
+//import "google/protobuf/empty.proto";    
+//import "google/protobuf/timestamp.proto";
+
+
+message Hotel {
+  int64 hotel_id = 1; // Исправлено: было "htel_id"
+  string name = 2;
+  string description = 3;
+  string address = 4;
+  string city = 5;
+  string state = 6;
+  string country = 7;
+  string zip_code = 8;
+  double latitude = 9;
+  double longitude = 10;
+  int32 stars = 11;
+  repeated string amenities = 12;
+  string image_url = 13;
+  //google.protobuf.Timestamp created_at = 14;
+  //google.protobuf.Timestamp updated_at = 15;
+}
+
+message RoomType {
+  int64 room_type_id = 1;
+  string name = 2;
+  string description = 3;
+  int32 capacity = 4;
+  double base_price = 5;
+  repeated string amenities = 6;
+}
+
+message Room {
+  int64 room_id = 1;
+  int64 hotel_id = 2;
+  string room_number = 3;
+  int64 room_type_id = 4;
+  double price_per_night = 5;
+  bool is_available = 6;
+  //google.protobuf.Timestamp created_at = 7;
+  //google.protobuf.Timestamp updated_at = 8;
+  RoomType room_type = 9;
+}
+
+message User {
+  int64 user_id = 1;
+  string username = 2;
+  string email = 3;
+  // string password = 4; 
+  string role = 5;
+  string full_name = 6;
+  string phone = 7;
+  //google.protobuf.Timestamp created_at = 8;
+  bool is_verified = 9;
+  string avatar_url = 10;
+  //google.protobuf.Timestamp updated_at = 11;
+}
+
+message GetHotelRequest {
+  int64 hotel_id = 1;
+}
+
+message GetHotelsRequest {
+  int32 limit = 1;
+  int32 offset = 2;
+}
+
+message CreateHotelRequest {
+  string name = 1;
+  string description = 2;
+  string address = 3;
+  string city = 4;
+  string state = 5;
+  string country = 6;
+  string zip_code = 7;
+  double latitude = 8;
+  double longitude = 9;
+  int32 stars = 10;
+  repeated string amenities = 11;
+  string image_url = 12;
+}
+
+message UpdateHotelRequest {
+  int64 hotel_id = 1;
+  optional string name = 2;
+  optional string description = 3;
+  optional string address = 4;
+  optional string city = 5;
+  optional string state = 6;
+  optional string country = 7;
+  optional string zip_code = 8;
+  optional double latitude = 9;
+  optional double longitude = 10;
+  optional int32 stars = 11;
+  repeated string amenities = 12;
+  optional string image_url = 13;
+}
+
+message HotelsResponse {
+  repeated Hotel hotels = 1;
+}
+message DeleteHotelRequest { 
+  int64 hotel_id = 1;
+}
+message GetRoomRequest {
+  int64 room_id = 1;
+}
+
+message GetRoomsByHotelRequest {
+  int64 hotel_id = 1;
+}
+
+message CreateRoomRequest {
+  int64 hotel_id = 1;
+  string room_number = 2;
+  int64 room_type_id = 3;
+  double price_per_night = 4;
+  bool is_available = 5;
+}
+
+message UpdateRoomRequest {
+  int64 room_id = 1;
+  optional string room_number = 2;
+  optional int64 room_type_id = 3;
+  optional double price_per_night = 4;
+  optional bool is_available = 5;
+}
+
+message DeleteRoomRequest {
+  int64 room_id = 1;
+}
+
+message RoomsResponse {
+  repeated Room rooms = 1;
+}
+
+message RegisterUserRequest {
+  string username = 1;
+  string email = 2;
+  string password = 3;
+  string full_name = 4;
+  string phone = 5;
+}
+
+message LoginUserRequest {
+  string email = 1;
+  string password = 2;
+}
+
+message LoginResponse {
+  string token = 1;
+  User user = 2;
+}
+
+message GetUserProfileRequest {
+  int64 user_id = 1;
+}
+
+message UpdateUserProfileRequest {
+  int64 user_id = 1;
+  optional string full_name = 2;
+  optional string phone = 3;
+  optional string avatar_url = 4;
+}
+
+// --- Сервисы ---
+
+service HotelService {
+  rpc GetHotel (GetHotelRequest) returns (Hotel);
+  // Исправлено: переименовано с GetHotelsRequest на GetHotels
+  rpc GetHotels (GetHotelsRequest) returns (HotelsResponse); 
+  rpc CreateHotel (CreateHotelRequest) returns (Hotel);
+  rpc UpdateHotel (UpdateHotelRequest) returns (Hotel);
+  //rpc DeleteHotel (DeleteHotelRequest) returns /*(//google.protobuf.Empty);*/
+}
+
+service RoomService {
+  rpc GetRoom (GetRoomRequest) returns (Room);
+  // Исправлено: переименовано с GetRoomsByHotelRequest на GetRoomsByHotel
+  rpc GetRoomsByHotel (GetRoomsByHotelRequest) returns (RoomsResponse); 
+  rpc CreateRoom (CreateRoomRequest) returns (Room);
+  rpc UpdateRoom (UpdateRoomRequest) returns (Room);
+ // rpc DeleteRoom (DeleteRoomRequest) returns /*(//google.protobuf.Empty);*/
+}
+
+service UserService {
+  rpc RegisterUser (RegisterUserRequest) returns (User);
+  rpc LoginUser (LoginUserRequest) returns (LoginResponse);
+  rpc GetUserProfile (GetUserProfileRequest) returns (User);
+  rpc UpdateUserProfile (UpdateUserProfileRequest) returns (User);
+}

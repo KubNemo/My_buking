@@ -17,18 +17,22 @@ type DBConfig struct {
 }
 
 type Config struct {
-	DB   DBConfig
-	Port string
+	DB        DBConfig
+	Port      string
+	SekretKey string
+	IsProd    bool
 }
 
 func LoadConfig() *Config {
-	err := godotenv.Load(".env") // или "./internal/config/.env" — смотри по расположению
+	err := godotenv.Load()
 	if err != nil {
 		log.Println("⚠️  .env файл не найден, загружаю переменные из окружения")
 	}
-
-	cfg := &Config{
-		Port: os.Getenv("PORT"),
+	isProd := os.Getenv("APP_ENV") == "production" || os.Getenv("APP_ENV") == "prod"
+	return &Config{
+		Port:      os.Getenv("PORT"),
+		SekretKey: os.Getenv("JWT_SECRET_KEY"),
+		IsProd:    isProd,
 		DB: DBConfig{
 			Name:     os.Getenv("DB_NAME"),
 			Port:     os.Getenv("DB_PORT"),
@@ -38,8 +42,4 @@ func LoadConfig() *Config {
 			SSLMode:  os.Getenv("DB_SSLMODE"),
 		},
 	}
-
-	log.Printf("Загруженные переменные: %+v\n", cfg.DB)
-
-	return cfg
 }

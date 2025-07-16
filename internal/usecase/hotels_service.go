@@ -1,11 +1,12 @@
-package hostes
+package usecase
 
 import (
 	"context"
 	"duking/internal/models"
+	"duking/internal/repository"
 )
 
-type Service interface {
+type HotelService interface {
 	HotelCreate(ctx context.Context, hotel *models.Hotel) error
 	HotelGetOne(ctx context.Context, id uint) (*models.Hotel, error)
 	HotelGetAll(ctx context.Context) ([]models.Hotel, error)
@@ -14,10 +15,10 @@ type Service interface {
 }
 
 type service struct {
-	repo Repository
+	repo repository.HotelRepository
 }
 
-func NewService(repo Repository) Service {
+func NewService(repo repository.HotelRepository) HotelService {
 	return &service{repo: repo}
 }
 
@@ -57,7 +58,7 @@ func (s *service) HotelGetOne(ctx context.Context, id uint) (*models.Hotel, erro
 
 // HotelUpdate implements Service.
 func (s *service) HotelUpdate(ctx context.Context, id uint, hotel *models.Hotel) (*models.Hotel, error) {
-	hotel, err := s.repo.Update(ctx, id, *hotel)
+	hotel, err := s.repo.Update(ctx, id, hotel)
 	if err != nil {
 		return nil, err
 	}

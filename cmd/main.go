@@ -1,52 +1,93 @@
 package main
 
 import (
-	hostes "duking/internal/Hostes"
 	"duking/internal/config"
+	"duking/internal/delivery/http"
 	"duking/internal/logger"
+	"duking/internal/repository"
+	"duking/internal/usecase"
 	"duking/pkg/db"
 	"log"
 
 	"github.com/gin-gonic/gin"
-	"github.com/joho/godotenv"
 	"go.uber.org/zap"
 )
 
 func main() {
 	cfg := config.LoadConfig()
-	err := godotenv.Load(".env") // или "./internal/config/.env" — смотри по расположению
-	if err != nil {
-		log.Println("⚠️  .env файл не найден, загружаю переменные из окружения")
-	}
-	lg, err := logger.Init(false)
+
+	lg, err := logger.Init(cfg.IsProd)
 	if err != nil {
 		log.Fatalf("failed to init logger: %v", err)
 	}
-	defer lg.Sync()
+	defer func() {
+		if err := lg.Sync(); err != nil {
+			lg.Error("failed to sync logger", zap.Error(err))
+		}
+	}()
 
 	pool, err := db.InitDB(cfg)
 	if err != nil {
-		lg.Error("failed to initialize DB", zap.Error(err))
+		lg.Fatal("failed to initialize DB", zap.Error(err))
 	}
 	defer pool.Close()
-	repo := hostes.NewRepository(pool)
-	svc := hostes.NewService(repo)
-	h := hostes.Newhandler(svc)
+
+	// Инициализация репозиториев
+	hotelRepo := repository.NewHotelRepository(pool)
+	userRepo := repository.NewUserRepository(pool)
+	roomRepo := repository.NewRooomRepository(pool) // ДОБАВЛЕНО: Репозиторий комнат
+
+	// Инициализация сервисов (use cases)
+	hotelService := usecase.NewHotelsService(hotelRepo)
+	userService := usecase.NewUserService(userRepo, *cfg, lg) // Передаем логгер в UserService
+	roomService := usecase.NewRoomService(roomRepo)           // ДОБАВЛЕНО: Сервис комнат
+
+	// Инициализация HTTP-хендлеров, передавая логгер
+	hotelHandler := http.NewHotelHandler(hotelService, lg)
+	userHandler := http.NewUserHandler(userService, lg)
+	roomHandler := http.NewRoomHandler(roomService, lg) // ДОБАВЛЕНО: Хендлер комнат
 
 	r := gin.New()
 	r.Use(gin.Recovery())
-	r.POST("/create", h.HotelCreate)
-	r.GET("/oneHotel/:id", h.HotelGetOne)
-	r.GET("/allHotel", h.HotelGetAll)
-	r.PATCH("updateHotel/:id", h.UpdateHotel)
-	r.DELETE("DeleteHotel/:id", h.HotelDelete)
-	lg.Info("Server starting")
+	r.Use(gin.Logger()) // Можно использовать, но Zap будет более детальным
+
+	// Группировка маршрутов для отелей
+	hotelRoutes := r.Group("/hotels")
+	{
+		hotelRoutes.POST("/", hotelHandler.HotelCreate) // Обновил маршрут
+		hotelRoutes.GET("/:id", hotelHandler.HotelGetOne)
+		hotelRoutes.GET("/", hotelHandler.HotelGetAll)
+		hotelRoutes.PATCH("/:id", hotelHandler.UpdateHotel)
+		hotelRoutes.DELETE("/:id", hotelHandler.HotelDelete)
+	}
+
+	// Группировка маршрутов для пользователей
+	userRoutes := r.Group("/users")
+	{
+		userRoutes.POST("/register", userHandler.CreateUser)
+		userRoutes.POST("/login", userHandler.UserLogin)
+		userRoutes.GET("/profile/:id", userHandler.GetProfile)
+		userRoutes.PATCH("/profile/:id", userHandler.UpdateProfile)
+	}
+
+	// ДОБАВЛЕНО: Группировка маршрутов для комнат
+	roomRoutes := r.Group("/rooms")
+	{
+		roomRoutes.POST("/", roomHandler.CreateRoom)
+		roomRoutes.GET("/:id", roomHandler.GetRoom)
+		roomRoutes.PATCH("/:id", roomHandler.UpdateRoom)
+		roomRoutes.DELETE("/:id", roomHandler.DeleteRoom)
+	}
+
+	// ДОБАВЛЕНО: Маршрут для получения комнат по отелю
+	r.GET("/hotels/:hotel_id/rooms", roomHandler.GetRoomsByHotel)
+
+	lg.Info("Server starting", zap.String("port", cfg.Port))
 	port := cfg.Port
-	// if port == "" {
-	// 	port = "8080"
-	// }
+	if port == "" {
+		port = "8080"
+	}
 	if err := r.Run(":" + port); err != nil {
-		lg.Fatal("", zap.Error(err))
-		return
+		lg.Fatal("failed to start server", zap.Error(err))
 	}
 }

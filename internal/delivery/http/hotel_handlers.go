@@ -1,7 +1,8 @@
-package hostes
+package http
 
 import (
 	"duking/internal/models"
+	"duking/internal/usecase"
 	"net/http"
 	"strconv"
 
@@ -9,10 +10,10 @@ import (
 )
 
 type Handler struct {
-	service Service
+	service usecase.Service
 }
 
-func Newhandler(service Service) *Handler {
+func Newhandler(service usecase.Service) *Handler {
 	return &Handler{service: service}
 }
 func (h *Handler) HotelCreate(c *gin.Context) {

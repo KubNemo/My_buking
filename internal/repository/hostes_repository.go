@@ -1,4 +1,4 @@
-package hostes
+package repository
 
 import (
 	"context"
