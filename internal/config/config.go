@@ -17,8 +17,10 @@ type DBConfig struct {
 }
 
 type Config struct {
-	DB   DBConfig
-	Port string
+	DB        DBConfig
+	Port      string
+	SekretKey string
+	IsProd    bool
 }
 
 func LoadConfig() *Config {
@@ -26,9 +28,11 @@ func LoadConfig() *Config {
 	if err != nil {
 		log.Println("⚠️  .env файл не найден, загружаю переменные из окружения")
 	}
-
+	isProd := os.Getenv("APP_ENV") == "production" || os.Getenv("APP_ENV") == "prod"
 	return &Config{
-		Port: os.Getenv("PORT"),
+		Port:      os.Getenv("PORT"),
+		SekretKey: os.Getenv("JWT_SECRET_KEY"),
+		IsProd:    isProd,
 		DB: DBConfig{
 			Name:     os.Getenv("DB_NAME"),
 			Port:     os.Getenv("DB_PORT"),

@@ -7,7 +7,7 @@ import (
 	"duking/internal/repository"
 	"duking/internal/usecase"
 	"duking/pkg/db"
-	"log" // Используем только для фатальных ошибок инициализации логгера
+	"log"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -16,47 +16,45 @@ import (
 func main() {
 	cfg := config.LoadConfig()
 
-	// Инициализация логгера в зависимости от режима (prod/dev)
-	lg, err := logger.Init(cfg.IsProd) // Используем cfg.IsProd
+	lg, err := logger.Init(cfg.IsProd)
 	if err != nil {
-		log.Fatalf("failed to init logger: %v", err) // Используем стандартный log для этой критической ошибки
+		log.Fatalf("failed to init logger: %v", err)
 	}
 	defer func() {
 		if err := lg.Sync(); err != nil {
-			// Обработка ошибки синхронизации логгера, если она возникнет
-			// Например, при закрытии приложения
+			lg.Error("failed to sync logger", zap.Error(err))
 		}
 	}()
 
 	pool, err := db.InitDB(cfg)
 	if err != nil {
-		lg.Fatal("failed to initialize DB", zap.Error(err)) // Используем Zap логгер
-		return                                              // Добавляем return, так как Fatal не всегда вызывает os.Exit
+		lg.Fatal("failed to initialize DB", zap.Error(err))
 	}
 	defer pool.Close()
 
 	// Инициализация репозиториев
-	hotelRepo := repository.NewHotelRepository(pool) // Переименовал для ясности
+	hotelRepo := repository.NewHotelRepository(pool)
 	userRepo := repository.NewUserRepository(pool)
+	roomRepo := repository.NewRooomRepository(pool) // ДОБАВЛЕНО: Репозиторий комнат
 
 	// Инициализация сервисов (use cases)
-	hotelService := usecase.NewHotelService(hotelRepo)    // Переименовал для ясности
-	userService := usecase.NewUserService(userRepo, *cfg) // Передаем весь конфиг, так как SecretKey нужен для JWT
+	hotelService := usecase.NewHotelsService(hotelRepo)
+	userService := usecase.NewUserService(userRepo, *cfg, lg) // Передаем логгер в UserService
+	roomService := usecase.NewRoomService(roomRepo)           // ДОБАВЛЕНО: Сервис комнат
 
 	// Инициализация HTTP-хендлеров, передавая логгер
-	hotelHandler := http.NewHotelHandler(hotelService, lg) // Переименовал и добавил логгер
-	userHandler := http.NewUserHandler(userService, lg)    // Добавил и передал логгер
+	hotelHandler := http.NewHotelHandler(hotelService, lg)
+	userHandler := http.NewUserHandler(userService, lg)
+	roomHandler := http.NewRoomHandler(roomService, lg) // ДОБАВЛЕНО: Хендлер комнат
 
 	r := gin.New()
-	// Добавляем Gin Recovery middleware для восстановления после паник
 	r.Use(gin.Recovery())
-	// Добавляем Gin Logger middleware для логирования HTTP-запросов (опционально, Zap уже логирует)
-	// r.Use(gin.Logger()) // Можно использовать, но Zap будет более детальным
+	r.Use(gin.Logger()) // Можно использовать, но Zap будет более детальным
 
 	// Группировка маршрутов для отелей
 	hotelRoutes := r.Group("/hotels")
 	{
-		hotelRoutes.POST("/create", hotelHandler.HotelCreate)
+		hotelRoutes.POST("/", hotelHandler.HotelCreate) // Обновил маршрут
 		hotelRoutes.GET("/:id", hotelHandler.HotelGetOne)
 		hotelRoutes.GET("/", hotelHandler.HotelGetAll)
 		hotelRoutes.PATCH("/:id", hotelHandler.UpdateHotel)
@@ -68,17 +66,28 @@ func main() {
 	{
 		userRoutes.POST("/register", userHandler.CreateUser)
 		userRoutes.POST("/login", userHandler.UserLogin)
-		// TODO: Добавить маршруты для GetProfile и UpdateProfile после их реализации
-		// userRoutes.GET("/profile/:id", userHandler.GetProfile)
-		// userRoutes.PATCH("/profile/:id", userHandler.UpdateProfile)
+		userRoutes.GET("/profile/:id", userHandler.GetProfile)
+		userRoutes.PATCH("/profile/:id", userHandler.UpdateProfile)
 	}
 
-	lg.Info("Server starting", zap.String("port", cfg.Port)) // Более информативное сообщение
+	// ДОБАВЛЕНО: Группировка маршрутов для комнат
+	roomRoutes := r.Group("/rooms")
+	{
+		roomRoutes.POST("/", roomHandler.CreateRoom)
+		roomRoutes.GET("/:id", roomHandler.GetRoom)
+		roomRoutes.PATCH("/:id", roomHandler.UpdateRoom)
+		roomRoutes.DELETE("/:id", roomHandler.DeleteRoom)
+	}
+
+	// ДОБАВЛЕНО: Маршрут для получения комнат по отелю
+	r.GET("/hotels/:hotel_id/rooms", roomHandler.GetRoomsByHotel)
+
+	lg.Info("Server starting", zap.String("port", cfg.Port))
 	port := cfg.Port
 	if port == "" {
 		port = "8080"
 	}
 	if err := r.Run(":" + port); err != nil {
-		lg.Fatal("failed to start server", zap.Error(err)) // Более информативное сообщение
+		lg.Fatal("failed to start server", zap.Error(err))
 	}
 }
